@@ -1,0 +1,142 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HCI Dashboard Simulation</title>
+  <script src="https://webgazer.cs.brown.edu/webgazer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+  <style>
+    body { font-family: Arial; text-align: center; margin: 20px; }
+    #dashboard { display: flex; justify-content: center; gap: 40px; margin-top: 20px; }
+    .indicator { border: 1px solid #ccc; padding: 10px; width: 150px; }
+    #notifications { margin-top: 20px; height: 40px; font-weight: bold; color: red; }
+    #reactionLog, #questionnaireLog { margin-top: 20px; max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
+    #heatmapCanvas { position: absolute; top: 0; left: 0; z-index: 10; pointer-events: none; }
+    #questionnaire { display: none; margin-top: 20px; }
+    .question { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>HCI Dashboard Simulation</h1>
+  <button onclick="startSimulation()">Start Simulation</button>
+  <button onclick="stopSimulation()">Stop Simulation</button>
+  <button onclick="exportReactionCSV()">Export Reaction Log</button>
+  <button onclick="exportQuestionnaireCSV()">Export Questionnaire</button>
+  <div id="dashboard">
+    <div class="indicator" id="temp">Temperature: --</div>
+    <div class="indicator" id="pressure">Pressure: --</div>
+    <div class="indicator" id="status">Status: --</div>
+  </div>
+  <div id="notifications"></div>
+  <button onclick="logReaction()">I detected an anomaly!</button>
+  <div id="reactionLog"><strong>Reaction Log:</strong><br></div>
+  <canvas id="heatmapCanvas" width="1200" height="800"></canvas>
+  <div id="questionnaire">
+    <h3>Post-Simulation Questionnaire</h3>
+    <form id="surveyForm">
+      <div class="question">1. How distracting were the notifications? <input type="number" min="1" max="5" name="q1"></div>
+      <div class="question">2. How difficult was the task? <input type="number" min="1" max="5" name="q2"></div>
+      <div class="question">3. How focused did you feel? <input type="number" min="1" max="5" name="q3"></div>
+      <div class="question">4. How confident were you in detecting anomalies? <input type="number" min="1" max="5" name="q4"></div>
+      <div class="question">5. How visually clear was the dashboard? <input type="number" min="1" max="5" name="q5"></div>
+      <div class="question">6. How helpful would a sound alert be? <input type="number" min="1" max="5" name="q6"></div>
+      <div class="question">7. Did you feel rushed during the task? <input type="number" min="1" max="5" name="q7"></div>
+      <div class="question">8. How often did you notice the notifications? <input type="number" min="1" max="5" name="q8"></div>
+      <div class="question">9. Did the notifications interfere with your task? <input type="number" min="1" max="5" name="q9"></div>
+      <div class="question">10. Would you prefer a different notification style? <input type="number" min="1" max="5" name="q10"></div>
+      <button type="button" onclick="submitSurvey()">Submit Survey</button>
+    </form>
+    <div id="questionnaireLog"><strong>Questionnaire Responses:</strong><br></div>
+  </div>
+
+<script>
+let simulationInterval, notificationInterval;
+let reactionLog = [];
+let questionnaireResponses = [];
+let anomalyTime = null;
+
+function startSimulation() {
+  webgazer.begin();
+  document.getElementById("questionnaire").style.display = "none";
+  simulationInterval = setInterval(updateDashboard, 3000);
+  notificationInterval = setInterval(showNotification, Math.random() * 10000 + 10000);
+}
+
+function stopSimulation() {
+  clearInterval(simulationInterval);
+  clearInterval(notificationInterval);
+  webgazer.pause();
+  document.getElementById("questionnaire").style.display = "block";
+}
+
+function updateDashboard() {
+  const temp = Math.floor(Math.random() * 100);
+  const pressure = Math.floor(Math.random() * 200);
+  const status = Math.random() < 0.2 ? "ALERT" : "OK";
+  document.getElementById("temp").innerText = "Temperature: " + temp;
+  document.getElementById("pressure").innerText = "Pressure: " + pressure;
+  document.getElementById("status").innerText = "Status: " + status;
+  if (status === "ALERT") {
+    anomalyTime = Date.now();
+  }
+}
+
+function showNotification() {
+  const messages = ["New message received", "System update available", "Reminder: Check logs"];
+  const msg = messages[Math.floor(Math.random() * messages.length)];
+  document.getElementById("notifications").innerText = msg;
+  setTimeout(() => { document.getElementById("notifications").innerText = ""; }, 3000);
+}
+
+function logReaction() {
+  if (anomalyTime) {
+    const reactionTime = Date.now() - anomalyTime;
+    reactionLog.push({ anomalyTime: anomalyTime, reactionTime: reactionTime });
+    document.getElementById("reactionLog").innerHTML += `Anomaly at ${new Date(anomalyTime).toLocaleTimeString()}, Reaction Time: ${reactionTime} ms<br>`;
+    anomalyTime = null;
+  }
+}
+
+function exportReactionCSV() {
+  const csv = Papa.unparse(reactionLog);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "reaction_logs.csv";
+  link.click();
+}
+
+function submitSurvey() {
+  const form = document.getElementById("surveyForm");
+  const data = {};
+  for (let i = 1; i <= 10; i++) {
+    data["q" + i] = form["q" + i].value;
+  }
+  questionnaireResponses.push(data);
+  document.getElementById("questionnaireLog").innerHTML += JSON.stringify(data) + "<br>";
+}
+
+function exportQuestionnaireCSV() {
+  const csv = Papa.unparse(questionnaireResponses);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "questionnaire_responses.csv";
+  link.click();
+}
+
+// Heatmap rendering
+const canvas = document.getElementById("heatmapCanvas");
+const ctx = canvas.getContext("2d");
+setInterval(() => {
+  if (webgazer.getCurrentPrediction()) {
+    const { x, y } = webgazer.getCurrentPrediction();
+    ctx.fillStyle = "rgba(255,0,0,0.1)";
+    ctx.beginPath();
+    ctx.arc(x, y, 20, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+}, 500);
+</script>
+</body>
+</html>
